@@ -152,3 +152,6 @@ flake8 .
 | `SECRET_KEY` | Flask secret key | `dev-secret-key` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
+## License
+
+MIT License

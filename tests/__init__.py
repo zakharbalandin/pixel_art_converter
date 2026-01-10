@@ -1,3 +1,1 @@
-"""
-Pixel Art Converter Test Suite
-"""
+"""Tests package for Pixel Art Converter"""

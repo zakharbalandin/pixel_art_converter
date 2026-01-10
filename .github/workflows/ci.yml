@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [master, develop, 'feature/*']
+    branches: [main, develop, 'feature/*']
   pull_request:
-    branches: [master, develop]
+    branches: [main, develop]
 
 jobs:
   lint:
@@ -95,7 +95,7 @@ jobs:
       
       - name: Verify application startup
         env:
-          # DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: test-secret-key
         run: |
           python -c "from app import create_app; app = create_app(); print('App created successfully')"
