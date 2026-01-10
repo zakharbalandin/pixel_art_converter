@@ -179,9 +179,7 @@ def log_conversion_event(
     conversion_logger.log(level, message, extra=extra)
 
 
-def log_api_request(
-    endpoint, method, status_code, duration_ms, ip_address=None, user_id=None
-):
+def log_api_request(endpoint, method, status_code, duration_ms, ip_address=None, user_id=None):
     """Log API request"""
     extra = {
         "action": "api_request",
