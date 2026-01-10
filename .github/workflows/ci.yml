@@ -95,7 +95,7 @@ jobs:
       
       - name: Verify application startup
         env:
-          DATABASE_URL: sqlite:///:memory:
+          # DATABASE_URL: sqlite:///:memory:
           SECRET_KEY: test-secret-key
         run: |
           python -c "from app import create_app; app = create_app(); print('App created successfully')"
