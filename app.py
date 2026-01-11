@@ -41,8 +41,8 @@ def create_app(config=None):
     if config:
         app.config.update(config)
     db.init_app(app)
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(RESULT_FOLDER, exist_ok=True)
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs(app.config["RESULT_FOLDER"], exist_ok=True)
     with app.app_context():
         db.create_all()
     register_routes(app)

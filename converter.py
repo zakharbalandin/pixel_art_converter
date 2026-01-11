@@ -73,7 +73,7 @@ class PixelArtConverter:
         min_distance = float("inf")
         closest = palette[0]
         for pal_color in palette:
-            distance = sum((a - b) ** 2 for a, b in zip(color, pal_color))
+            distance = sum((int(a) - int(b)) ** 2 for a, b in zip(color, pal_color))
             if distance < min_distance:
                 min_distance = distance
                 closest = pal_color
