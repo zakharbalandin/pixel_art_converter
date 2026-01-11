@@ -255,7 +255,6 @@ def register_routes(app):
         return jsonify({"error": "File too large. Maximum size is 16MB."}), 413
 
 
-app = create_app()
-
 if __name__ == "__main__":
+    app = create_app()
     app.run(debug=True, host="0.0.0.0", port=5000)
