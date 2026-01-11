@@ -113,6 +113,18 @@ def register_routes(app, metrics):
         def conversion_duration(f):
             return f
 
+    @app.before_request
+    def validate_session():
+        """Clear stale user sessions on every request"""
+        if "user_id" in session:
+            user = User.query.get(session["user_id"])
+            if not user:
+                logger.warning(
+                    "Clearing stale session",
+                    extra={"action": "session_cleanup", "stale_user_id": session["user_id"]},
+                )
+                session.pop("user_id", None)
+
     @app.context_processor
     def inject_user():
         return dict(current_user=get_current_user())
