@@ -57,7 +57,6 @@ def setup_logging(app=None, log_level=None):
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_format = logging.Formatter(
@@ -67,26 +66,29 @@ def setup_logging(app=None, log_level=None):
     console_handler.setFormatter(console_format)
     root_logger.addHandler(console_handler)
 
-    # File handler (JSON format)
     file_handler = RotatingFileHandler(
-        os.path.join(LOGS_DIR, "app.log"), maxBytes=10 * 1024 * 1024, backupCount=5
+        os.path.join(LOGS_DIR, "app.log"),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
     )
     file_handler.setLevel(level)
     file_handler.setFormatter(JSONFormatter())
     root_logger.addHandler(file_handler)
 
-    # Error file handler
     error_handler = RotatingFileHandler(
-        os.path.join(LOGS_DIR, "error.log"), maxBytes=10 * 1024 * 1024, backupCount=5
+        os.path.join(LOGS_DIR, "error.log"),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
     )
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(JSONFormatter())
     root_logger.addHandler(error_handler)
 
-    # Auth log handler
     auth_logger = logging.getLogger("auth")
     auth_handler = RotatingFileHandler(
-        os.path.join(LOGS_DIR, "auth.log"), maxBytes=5 * 1024 * 1024, backupCount=3
+        os.path.join(LOGS_DIR, "auth.log"),
+        maxBytes=5 * 1024 * 1024,
+        backupCount=3,
     )
     auth_handler.setLevel(logging.INFO)
     auth_handler.setFormatter(JSONFormatter())
@@ -134,7 +136,12 @@ class LogContext:
 
 
 def log_auth_event(
-    event_type, username=None, user_id=None, ip_address=None, success=True, details=None
+    event_type,
+    username=None,
+    user_id=None,
+    ip_address=None,
+    success=True,
+    details=None,
 ):
     """Log authentication-related events"""
     extra = {"action": f"auth_{event_type}", "success": success}
@@ -156,7 +163,13 @@ def log_auth_event(
 
 
 def log_conversion_event(
-    original_file, pixel_size, palette, duration_ms, user_id=None, success=True, error=None
+    original_file,
+    pixel_size,
+    palette,
+    duration_ms,
+    user_id=None,
+    success=True,
+    error=None,
 ):
     """Log conversion events"""
     extra = {
@@ -179,7 +192,14 @@ def log_conversion_event(
     conversion_logger.log(level, message, extra=extra)
 
 
-def log_api_request(endpoint, method, status_code, duration_ms, ip_address=None, user_id=None):
+def log_api_request(
+    endpoint,
+    method,
+    status_code,
+    duration_ms,
+    ip_address=None,
+    user_id=None,
+):
     """Log API request"""
     extra = {
         "action": "api_request",

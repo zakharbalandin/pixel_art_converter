@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects.postgresql import JSONB
 
 db = SQLAlchemy()
 
@@ -22,16 +21,6 @@ class User(db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "username": self.username,
-            "email": self.email,
-            "created_at": self.created_at.isoformat(),
-            "is_active": self.is_active,
-            "conversion_count": self.conversions.count(),
-        }
-
 
 class Conversion(db.Model):
     __tablename__ = "conversions"
@@ -43,7 +32,7 @@ class Conversion(db.Model):
     original_height = db.Column(db.Integer)
     pixel_size = db.Column(db.Integer, default=8)
     palette = db.Column(db.String(50), default="retro")
-    settings = db.Column(JSONB, default={})
+    settings = db.Column(db.JSON, default={})
     result_filename = db.Column(db.String(256))
     result_size = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -54,22 +43,6 @@ class Conversion(db.Model):
     def __repr__(self):
         return f"<Conversion {self.id}: {self.original_filename}>"
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "original_filename": self.original_filename,
-            "original_size": self.original_size,
-            "original_dimensions": f"{self.original_width}x{self.original_height}",
-            "pixel_size": self.pixel_size,
-            "palette": self.palette,
-            "result_filename": self.result_filename,
-            "result_size": self.result_size,
-            "created_at": self.created_at.isoformat(),
-            "processing_time_ms": self.processing_time_ms,
-            "status": self.status,
-        }
-
 
 def init_db(app):
     db.init_app(app)
@@ -79,5 +52,6 @@ def init_db(app):
 
 def get_database_url():
     return os.environ.get(
-        "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/pixel_art_db"
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/pixel_art_db",
     )
