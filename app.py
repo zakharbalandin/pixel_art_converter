@@ -49,9 +49,11 @@ def create_app(config=None):
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["RESULT_FOLDER"], exist_ok=True)
 
-    # Initialize Prometheus metrics
-    metrics = PrometheusMetrics(app)
-    metrics.info("app_info", "Pixel Art Converter", version="1.0.0")
+    # Initialize Prometheus metrics (skip in testing to avoid duplicate registration)
+    metrics = None
+    if not app.config.get("TESTING"):
+        metrics = PrometheusMetrics(app)
+        metrics.info("app_info", "Pixel Art Converter", version="1.0.0")
 
     with app.app_context():
         db.create_all()
@@ -87,17 +89,25 @@ def get_current_user():
 
 
 def register_routes(app, metrics):
-    # Custom metrics
-    conversion_counter = metrics.counter(
-        "conversions_total",
-        "Total number of image conversions",
-        labels={"palette": lambda: request.form.get("palette", "unknown")},
-    )
-    conversion_duration = metrics.histogram(
-        "conversion_duration_seconds",
-        "Time spent processing conversions",
-        labels={"palette": lambda: request.form.get("palette", "unknown")},
-    )
+    # Custom metrics (only if metrics enabled)
+    if metrics:
+        conversion_counter = metrics.counter(
+            "conversions_total",
+            "Total number of image conversions",
+            labels={"palette": lambda: request.form.get("palette", "unknown")},
+        )
+        conversion_duration = metrics.histogram(
+            "conversion_duration_seconds",
+            "Time spent processing conversions",
+            labels={"palette": lambda: request.form.get("palette", "unknown")},
+        )
+    else:
+        # No-op decorators for testing
+        def conversion_counter(f):
+            return f
+
+        def conversion_duration(f):
+            return f
 
     @app.context_processor
     def inject_user():
