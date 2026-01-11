@@ -84,7 +84,11 @@ def login_required(f):
 
 def get_current_user():
     if "user_id" in session:
-        return User.query.get(session["user_id"])
+        user = User.query.get(session["user_id"])
+        if user:
+            return user
+        # Clear stale session
+        session.pop("user_id", None)
     return None
 
 
@@ -188,8 +192,18 @@ def register_routes(app, metrics):
             with open(result_path, "wb") as f:
                 f.write(result_data)
 
+            # Validate user exists before saving (handles stale sessions)
+            user_id = session.get("user_id")
+            if user_id and not User.query.get(user_id):
+                logger.warning(
+                    "Stale user_id in session, clearing",
+                    extra={"action": "session_cleanup", "stale_user_id": user_id},
+                )
+                session.pop("user_id", None)
+                user_id = None
+
             conversion = Conversion(
-                user_id=session.get("user_id"),
+                user_id=user_id,
                 original_filename=original_filename,
                 original_size=len(image_data),
                 original_width=original_width,
