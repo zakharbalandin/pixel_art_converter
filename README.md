@@ -1,157 +1,177 @@
 # Pixel Art Converter
 
-A web application that converts regular images into pixel art style with various color palettes.
-
-![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![Flask](https://img.shields.io/badge/Flask-2.3+-green.svg)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)
+A Flask web application that converts images to pixel art style with various color palettes.
 
 ## Features
 
-- 🎨 **Multiple Color Palettes**: GameBoy, NES, Grayscale, Retro, and Original
-- 📏 **Adjustable Pixel Size**: Fine-tune the pixelation level (2-32px)
-- 🖼️ **Supports Multiple Formats**: PNG, JPG, GIF, WebP, BMP
-- 👤 **User Authentication**: Register, login, and track conversion history
-- 📊 **Conversion Statistics**: Track processing time and file sizes
-- 💾 **PostgreSQL Database**: Persistent storage for users and history
-- 📝 **Comprehensive Logging**: Structured logging for debugging
+- Convert images to pixel art with configurable pixel size (1-64)
+- Multiple color palettes: gameboy, nes, grayscale, retro, original
+- User authentication and conversion history
+- RESTful API endpoints
+- **Full monitoring stack with Prometheus, Loki, and Grafana**
 
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL 15+
-- pip
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/zakharbalandin/pixel_art_converter.git
-cd pixel_art_converter
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Set up PostgreSQL database:
-```bash
-createdb pixel_art_db
-```
-
-5. Configure environment variables:
-```bash
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pixel_art_db
-export SECRET_KEY=your-secret-key-here
-```
-
-6. Run the application:
-```bash
-python app.py
-```
-
-7. Open http://localhost:5000 in your browser
-
-### Using Docker
+### With Docker Compose (Recommended)
 
 ```bash
+# Start all services including monitoring
 docker-compose up -d
+
+# View logs
+docker-compose logs -f web
 ```
 
-## Project Structure
+### Access Points
 
-```
-pixel_art_converter/
-├── app.py              # Flask application
-├── converter.py        # Image conversion logic
-├── models.py           # Database models
-├── logging_config.py   # Logging configuration
-├── requirements.txt    # Python dependencies
-├── pytest.ini          # Pytest configuration
-├── Dockerfile          # Docker configuration
-├── docker-compose.yml  # Docker Compose configuration
-├── templates/          # HTML templates
-│   ├── base.html
-│   ├── index.html
-│   ├── login.html
-│   ├── register.html
-│   ├── history.html
-│   └── error.html
-├── tests/              # Test suite
-│   ├── conftest.py
-│   ├── test_converter.py
-│   └── test_app.py
-└── .github/
-    └── workflows/
-        └── ci.yml      # CI/CD pipeline
-```
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Web App | http://localhost:5000 | - |
+| Grafana | http://localhost:3000 | admin/admin |
+| Prometheus | http://localhost:9090 | - |
+| Loki | http://localhost:3100 | - |
+
+## Monitoring Stack
+
+### Prometheus (Metrics)
+
+Collects application metrics from the `/metrics` endpoint:
+
+- `flask_http_request_total` - Total HTTP requests
+- `flask_http_request_duration_seconds` - Request latency histogram
+- `conversions_total` - Total image conversions by palette
+- `conversion_duration_seconds` - Conversion processing time
+
+### Loki (Logs)
+
+Collects JSON-formatted application logs via Promtail:
+
+- All application actions are logged with structured JSON
+- Logs include: action type, user_id, timestamps, request details
+- Labels: service, level, action
+
+### Grafana (Visualization)
+
+Pre-configured dashboard includes:
+
+- Total conversions counter
+- Request rate graph
+- P95 response time
+- Error rate (5xx)
+- Request rate by endpoint
+- Conversion duration by palette
+- Live application logs
+- Logs by level chart
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Home page with converter interface |
-| `/convert` | POST | Convert an image |
+| `/` | GET | Main converter interface |
+| `/convert` | POST | Convert image to pixel art |
 | `/result/<filename>` | GET | Get converted image |
 | `/download/<filename>` | GET | Download converted image |
-| `/register` | GET/POST | User registration |
-| `/login` | GET/POST | User login |
-| `/logout` | GET | User logout |
-| `/history` | GET | View conversion history |
-| `/api/palettes` | GET | Get available palettes |
+| `/api/palettes` | GET | List available palettes |
 | `/api/stats` | GET | Get conversion statistics |
+| `/metrics` | GET | Prometheus metrics |
+| `/health` | GET | Health check endpoint |
 
-## Available Palettes
+## Color Palettes
 
-- **GameBoy**: Classic 4-color green palette
-- **NES**: Nintendo Entertainment System colors
-- **Grayscale**: 8 shades of gray
-- **Retro**: C64-inspired 16 colors
-- **Original**: Keep original colors (pixelation only)
-
-## Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run specific test file
-pytest tests/test_converter.py -v
-```
+- **gameboy**: Classic Game Boy green palette (4 colors)
+- **nes**: Nintendo Entertainment System palette (24 colors)
+- **grayscale**: 8 shades of gray
+- **retro**: Classic computer colors (16 colors)
+- **original**: Keep original colors (pixelation only)
 
 ## Development
 
-### Code Quality
+### Local Setup
 
 ```bash
-# Format code
-black .
-isort .
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
 
-# Lint code
-flake8 .
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export DATABASE_URL=sqlite:///dev.db
+export SECRET_KEY=dev-secret-key
+
+# Run application
+python app.py
 ```
+
+### Running Tests
+
+```bash
+pytest -v --cov=.
+```
+
+## Logging
+
+All application actions are logged in JSON format for Loki compatibility:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "level": "INFO",
+  "logger": "app",
+  "message": "Conversion completed",
+  "service": "pixel-art-converter",
+  "action": "convert_success",
+  "conversion_id": 123,
+  "processing_time_ms": 250
+}
+```
+
+### Logged Actions
+
+- `app_init` - Application startup
+- `page_view` - Page access
+- `convert_start/success/error` - Image conversion
+- `login_attempt/success/failed` - Authentication
+- `register_attempt/success/failed` - Registration
+- `logout` - User logout
+- `api_call` - API endpoint access
+- `error_404/500/413` - HTTP errors
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection URL | `postgresql://postgres:postgres@localhost:5432/pixel_art_db` |
-| `SECRET_KEY` | Flask secret key | `dev-secret-key` |
-| `LOG_LEVEL` | Logging level | `INFO` |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | postgresql://... | Database connection string |
+| `SECRET_KEY` | dev-secret-key | Flask secret key |
+| `LOG_LEVEL` | INFO | Logging level |
+
+## Architecture
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Browser   │────▶│  Flask App  │────▶│  PostgreSQL │
+└─────────────┘     └─────────────┘     └─────────────┘
+                           │
+                           │ /metrics
+                           ▼
+                    ┌─────────────┐
+                    │  Prometheus │
+                    └─────────────┘
+                           │
+                           ▼
+┌─────────────┐     ┌─────────────┐
+│  Promtail   │────▶│    Loki     │
+└─────────────┘     └─────────────┘
+       │                   │
+       │ (Docker logs)     │
+       ▼                   ▼
+┌─────────────┐     ┌─────────────┐
+│  Flask App  │     │   Grafana   │
+│   (stdout)  │     │ (Dashboard) │
+└─────────────┘     └─────────────┘
+```
 
 ## License
 
-MIT License
+MIT

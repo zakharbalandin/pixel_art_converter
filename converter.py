@@ -4,10 +4,13 @@ Converts images to pixel art style with configurable parameters
 """
 
 import io
+import logging
 from typing import List, Optional, Tuple
 
 import numpy as np
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 class PixelArtConverter:
@@ -66,6 +69,14 @@ class PixelArtConverter:
         self.pixel_size = max(1, min(64, pixel_size))
         self.palette_name = palette
         self.palette = self.PALETTES.get(palette, None)
+        logger.debug(
+            "Converter initialized",
+            extra={
+                "action": "converter_init",
+                "pixel_size": self.pixel_size,
+                "palette": palette,
+            },
+        )
 
     def _find_closest_color(
         self, color: Tuple[int, int, int], palette: List[Tuple[int, int, int]]
