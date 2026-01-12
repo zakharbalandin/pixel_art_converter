@@ -28,11 +28,6 @@ scrape_configs:
             action: action
             timestamp: timestamp
             message: message
-            service: service
       - labels:
           level:
           action:
-          service:
-      - timestamp:
-          source: timestamp
-          format: RFC3339

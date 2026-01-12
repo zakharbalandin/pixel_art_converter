@@ -463,7 +463,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service=\"pixel-art-converter\"} |= ``",
+          "expr": "{service="web"} |= ``",
           "refId": "A"
         }
       ],
@@ -581,7 +581,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "sum by (level) (count_over_time({service=\"pixel-art-converter\"} [1m]))",
+          "expr": "sum by (level) (count_over_time({service="web"} [1m]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
