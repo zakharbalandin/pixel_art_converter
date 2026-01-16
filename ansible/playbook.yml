@@ -1,0 +1,370 @@
+---
+# ============================================================
+# PIXEL ART CONVERTER - Ansible Deployment Playbook
+# ============================================================
+#
+# Infrastructure:
+#   server (192.168.122.4) - Flask App + PostgreSQL Database
+#   node1  (192.168.122.5) - Monitoring (Prometheus, Grafana, Loki)
+#   node2  (192.168.122.6) - Secondary Flask App (connects to server's DB)
+#
+# Usage:
+#   Full deployment:     ansible-playbook playbook.yml
+#   Docker only:         ansible-playbook playbook.yml --tags docker
+#   App only:            ansible-playbook playbook.yml --tags app
+#   Monitoring only:     ansible-playbook playbook.yml --tags monitoring
+#   Database only:       ansible-playbook playbook.yml --tags database
+#
+# ============================================================
+
+# ============================================================
+# PLAY 1: Install Docker on ALL servers
+# ============================================================
+- name: Install Docker on all servers
+  hosts: all
+  become: true
+  tags: docker
+  
+  tasks:
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Python library
+      ansible.builtin.pip:
+        name:
+          - docker
+          - docker-compose
+        state: present
+
+    - name: Start and enable Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+# ============================================================
+# PLAY 2: Deploy PostgreSQL Database on server
+# ============================================================
+- name: Deploy PostgreSQL Database
+  hosts: db_servers
+  become: true
+  tags: database
+  
+  tasks:
+    - name: Create app directory
+      ansible.builtin.file:
+        path: /opt/{{ app_name }}
+        state: directory
+        mode: '0755'
+
+    - name: Create Docker network
+      community.docker.docker_network:
+        name: "{{ app_name }}_network"
+        state: present
+
+    - name: Deploy PostgreSQL container
+      community.docker.docker_container:
+        name: "{{ app_name }}_db"
+        image: postgres:15
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: "{{ app_name }}_network"
+        ports:
+          - "{{ db_port }}:5432"
+        env:
+          POSTGRES_USER: "{{ db_user }}"
+          POSTGRES_PASSWORD: "{{ db_password }}"
+          POSTGRES_DB: "{{ db_name }}"
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U {{ db_user }}"]
+          interval: 5s
+          timeout: 5s
+          retries: 5
+
+    - name: Wait for PostgreSQL to be ready
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ db_port }}"
+        delay: 5
+        timeout: 60
+
+# ============================================================
+# PLAY 3: Deploy Flask Application
+# ============================================================
+- name: Deploy Flask Application
+  hosts: app_servers
+  become: true
+  tags: app
+  
+  vars:
+    db_host: "{{ hostvars['server']['ansible_host'] }}"
+  
+  tasks:
+    - name: Create app directory
+      ansible.builtin.file:
+        path: /opt/{{ app_name }}
+        state: directory
+        mode: '0755'
+
+    - name: Create subdirectories
+      ansible.builtin.file:
+        path: "/opt/{{ app_name }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - uploads
+        - results
+        - logs
+
+    - name: Copy application files
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: /opt/{{ app_name }}/
+        mode: '0644'
+      loop:
+        - ../app.py
+        - ../converter.py
+        - ../models.py
+        - ../logging_config.py
+        - ../requirements.txt
+        - ../Dockerfile
+
+    - name: Copy templates directory
+      ansible.builtin.copy:
+        src: ../templates/
+        dest: /opt/{{ app_name }}/templates/
+        mode: '0644'
+
+    - name: Create Docker network
+      community.docker.docker_network:
+        name: "{{ app_name }}_network"
+        state: present
+
+    - name: Build Flask application image
+      community.docker.docker_image:
+        name: "{{ app_image }}"
+        tag: latest
+        source: build
+        build:
+          path: /opt/{{ app_name }}
+          pull: yes
+        state: present
+        force_source: yes
+
+    - name: Deploy Flask application container
+      community.docker.docker_container:
+        name: "{{ app_name }}_web"
+        image: "{{ app_image }}:latest"
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: "{{ app_name }}_network"
+        ports:
+          - "{{ app_port }}:5000"
+        env:
+          DATABASE_URL: "postgresql://{{ db_user }}:{{ db_password }}@{{ db_host }}:{{ db_port }}/{{ db_name }}"
+          SECRET_KEY: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+          LOG_LEVEL: "INFO"
+        volumes:
+          - /opt/{{ app_name }}/uploads:/app/uploads
+          - /opt/{{ app_name }}/results:/app/results
+          - /opt/{{ app_name }}/logs:/app/logs
+
+    - name: Wait for Flask app to be ready
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ app_port }}"
+        delay: 5
+        timeout: 60
+
+    - name: Verify application is running
+      ansible.builtin.uri:
+        url: "http://localhost:{{ app_port }}/health"
+        status_code: 200
+      register: health_check
+      retries: 5
+      delay: 5
+      until: health_check.status == 200
+
+# ============================================================
+# PLAY 4: Deploy Monitoring Stack
+# ============================================================
+- name: Deploy Monitoring Stack
+  hosts: monitoring_servers
+  become: true
+  tags: monitoring
+  
+  vars:
+    app_servers_list: "{{ groups['app_servers'] | map('extract', hostvars, 'ansible_host') | list }}"
+  
+  tasks:
+    - name: Create monitoring directory
+      ansible.builtin.file:
+        path: /opt/monitoring/{{ item }}
+        state: directory
+        mode: '0755'
+      loop:
+        - prometheus
+        - grafana/provisioning/datasources
+        - grafana/provisioning/dashboards
+        - loki
+        - promtail
+
+    - name: Create Docker network
+      community.docker.docker_network:
+        name: monitoring_network
+        state: present
+
+    # ---------- PROMETHEUS ----------
+    - name: Create Prometheus configuration
+      ansible.builtin.template:
+        src: templates/prometheus.yml.j2
+        dest: /opt/monitoring/prometheus/prometheus.yml
+        mode: '0644'
+
+    - name: Deploy Prometheus container
+      community.docker.docker_container:
+        name: prometheus
+        image: prom/prometheus:v2.47.0
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: monitoring_network
+        ports:
+          - "{{ prometheus_port }}:9090"
+        volumes:
+          - /opt/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+          - prometheus_data:/prometheus
+        command:
+          - "--config.file=/etc/prometheus/prometheus.yml"
+          - "--storage.tsdb.path=/prometheus"
+          - "--web.enable-lifecycle"
+
+    # ---------- LOKI ----------
+    - name: Create Loki configuration
+      ansible.builtin.template:
+        src: templates/loki-config.yml.j2
+        dest: /opt/monitoring/loki/loki-config.yml
+        mode: '0644'
+
+    - name: Deploy Loki container
+      community.docker.docker_container:
+        name: loki
+        image: grafana/loki:2.9.0
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: monitoring_network
+        ports:
+          - "{{ loki_port }}:3100"
+        volumes:
+          - /opt/monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+          - loki_data:/loki
+        command: -config.file=/etc/loki/loki-config.yml
+
+    # ---------- GRAFANA ----------
+    - name: Create Grafana datasources configuration
+      ansible.builtin.template:
+        src: templates/grafana-datasources.yml.j2
+        dest: /opt/monitoring/grafana/provisioning/datasources/datasources.yml
+        mode: '0644'
+
+    - name: Create Grafana dashboards configuration
+      ansible.builtin.copy:
+        src: ../monitoring/grafana/provisioning/dashboards/
+        dest: /opt/monitoring/grafana/provisioning/dashboards/
+        mode: '0644'
+
+    - name: Deploy Grafana container
+      community.docker.docker_container:
+        name: grafana
+        image: grafana/grafana:10.1.0
+        state: started
+        restart_policy: unless-stopped
+        networks:
+          - name: monitoring_network
+        ports:
+          - "{{ grafana_port }}:3000"
+        env:
+          GF_SECURITY_ADMIN_USER: admin
+          GF_SECURITY_ADMIN_PASSWORD: admin
+          GF_USERS_ALLOW_SIGN_UP: "false"
+        volumes:
+          - /opt/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+          - grafana_data:/var/lib/grafana
+
+    - name: Wait for Grafana to be ready
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ grafana_port }}"
+        delay: 5
+        timeout: 60
+
+# ============================================================
+# PLAY 5: Display deployment summary
+# ============================================================
+- name: Deployment Summary
+  hosts: localhost
+  gather_facts: no
+  tags: always
+  
+  tasks:
+    - name: Display access information
+      ansible.builtin.debug:
+        msg: |
+          
+          ============================================================
+          PIXEL ART CONVERTER - Deployment Complete!
+          ============================================================
+          
+          🌐 Web Application:
+             - Primary:   http://192.168.122.4:5000
+             - Secondary: http://192.168.122.6:5000
+          
+          📊 Monitoring Stack (node1 - 192.168.122.5):
+             - Grafana:    http://192.168.122.5:3000 (admin/admin)
+             - Prometheus: http://192.168.122.5:9090
+             - Loki:       http://192.168.122.5:3100
+          
+          🗄️ Database:
+             - PostgreSQL: 192.168.122.4:5432
+          
+          ============================================================

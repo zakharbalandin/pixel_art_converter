@@ -175,3 +175,42 @@ All application actions are logged in JSON format for Loki compatibility:
 ## License
 
 MIT
+
+---
+
+## Ansible Deployment (Multi-VM)
+
+For production deployment across multiple VMs, use the Ansible playbooks:
+
+### Infrastructure
+
+| Host | IP Address | Role |
+|------|------------|------|
+| server | 192.168.122.4 | Flask App + PostgreSQL |
+| node1 | 192.168.122.5 | Monitoring Stack |
+| node2 | 192.168.122.6 | Secondary Flask App |
+
+### Quick Start
+
+```bash
+# Install Ansible collections
+cd ansible/
+ansible-galaxy install -r requirements.yml
+
+# Test connectivity
+ansible all -m ping
+
+# Deploy everything
+ansible-playbook playbook.yml
+```
+
+### Access Points (After Deployment)
+
+| Service | URL |
+|---------|-----|
+| Web App (Primary) | http://192.168.122.4:5000 |
+| Web App (Secondary) | http://192.168.122.6:5000 |
+| Grafana | http://192.168.122.5:3000 |
+| Prometheus | http://192.168.122.5:9090 |
+
+See `ansible/README.md` for detailed documentation.

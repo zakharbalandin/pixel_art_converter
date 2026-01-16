@@ -1,0 +1,41 @@
+# ============================================================
+# INVENTORY - Pixel Art Converter Infrastructure
+# ============================================================
+#
+# Infrastructure Layout:
+#   server (192.168.122.4) - Main app + Database
+#   node1  (192.168.122.5) - Monitoring stack (Prometheus, Grafana, Loki)
+#   node2  (192.168.122.6) - Secondary web instance
+#
+# ============================================================
+
+[app_servers]
+server ansible_host=192.168.122.4
+node2  ansible_host=192.168.122.6
+
+[db_servers]
+server ansible_host=192.168.122.4
+
+[monitoring_servers]
+node1 ansible_host=192.168.122.5
+
+[all:vars]
+ansible_user=student
+ansible_python_interpreter=/usr/bin/python3
+ansible_connection=ssh
+
+# Application settings
+app_name=pixel_art_converter
+app_port=5000
+app_image=pixel-art-converter
+
+# Database settings
+db_name=pixel_art_db
+db_user=postgres
+db_password=postgres
+db_port=5432
+
+# Monitoring settings
+prometheus_port=9090
+grafana_port=3000
+loki_port=3100

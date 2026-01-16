@@ -26,14 +26,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 black isort
       
-      # - name: Check code formatting with black
-      #   run: black --check --diff .
+      - name: Check code formatting with black
+        run: black --check --diff .
       
-      # - name: Check import sorting with isort
-      #   run: isort --check-only --diff .
+      - name: Check import sorting with isort
+        run: isort --check-only --diff .
       
-      # - name: Lint with flake8
-      #   run: flake8 . --max-line-length=120 --exclude=venv,.git,__pycache__
+      - name: Lint with flake8
+        run: flake8 . --max-line-length=120 --exclude=venv,.git,__pycache__
 
   test:
     runs-on: ubuntu-latest
